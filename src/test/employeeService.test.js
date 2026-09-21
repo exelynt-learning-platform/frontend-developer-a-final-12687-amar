@@ -111,4 +111,82 @@ it("deletes an employee successfully", async () => {
 
   expect(result).toEqual({});
 });
+
+  it("throws error when getting employees fails", async () => {
+    const error = new Error("Network Error");
+
+    api.get.mockRejectedValue(error);
+
+    await expect(getEmployees()).rejects.toThrow(
+      "Network Error"
+    );
+
+    expect(api.get).toHaveBeenCalledWith("/employee");
+  });
+
+  it("throws error when creating employee fails", async () => {
+    const employee = {
+      name: "Amar Bhise",
+      email: "amar@gmail.com",
+      mobile: "9730695484",
+      country: "India",
+      state: "Maharashtra",
+      district: "Latur",
+    };
+
+    const error = new Error("Create failed");
+
+    api.post.mockRejectedValue(error);
+
+    await expect(createEmployee(employee)).rejects.toThrow(
+      "Create failed"
+    );
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/employee",
+      employee
+    );
+  });
+
+  it("throws error when updating employee fails", async () => {
+    const employeeId = "20";
+
+    const employee = {
+      name: "Amar Bhise Updated",
+      email: "amar.updated@gmail.com",
+      mobile: "9730695484",
+      country: "India",
+      state: "Maharashtra",
+      district: "Latur",
+    };
+
+    const error = new Error("Update failed");
+
+    api.put.mockRejectedValue(error);
+
+    await expect(
+      updateEmployee(employeeId, employee)
+    ).rejects.toThrow("Update failed");
+
+    expect(api.put).toHaveBeenCalledWith(
+      `/employee/${employeeId}`,
+      employee
+    );
+  });
+
+  it("throws error when deleting employee fails", async () => {
+    const employeeId = "20";
+
+    const error = new Error("Delete failed");
+
+    api.delete.mockRejectedValue(error);
+
+    await expect(
+      deleteEmployee(employeeId)
+    ).rejects.toThrow("Delete failed");
+
+    expect(api.delete).toHaveBeenCalledWith(
+      `/employee/${employeeId}`
+    );
+  });
 });

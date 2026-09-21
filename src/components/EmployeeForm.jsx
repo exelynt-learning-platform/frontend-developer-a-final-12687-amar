@@ -1,22 +1,14 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { addEmployee, editEmployee } from "../store/employeeSlice";
-import { fetchCountries } from "../store/countrySlice";
-
-function EmployeeForm({ employee, onClose }) {
-  const dispatch = useDispatch();
-
-  const { loading: employeeLoading } = useSelector(
-    (state) => state.employees
-  );
-
-  const {
-    countries,
-    loading: countryLoading,
-    error: countryError,
-  } = useSelector((state) => state.countries);
-
+function EmployeeForm({
+  employee,
+  countries,
+  countryLoading,
+  countryError,
+  employeeLoading,
+  onSubmit,
+  onClose,
+}) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,14 +19,9 @@ function EmployeeForm({ employee, onClose }) {
   });
 
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
 
   const isEditMode = Boolean(employee);
-
-  useEffect(() => {
-    if (countries.length === 0) {
-      dispatch(fetchCountries());
-    }
-  }, [dispatch, countries.length]);
 
   useEffect(() => {
     if (employee) {
@@ -45,6 +32,15 @@ function EmployeeForm({ employee, onClose }) {
         country: employee.country || "",
         state: employee.state || "",
         district: employee.district || "",
+      });
+    } else {
+      setFormData({
+        name: "",
+        email: "",
+        mobile: "",
+        country: "",
+        state: "",
+        district: "",
       });
     }
   }, [employee]);
@@ -61,6 +57,8 @@ function EmployeeForm({ employee, onClose }) {
       ...previousErrors,
       [name]: "",
     }));
+
+    setSubmitError("");
   };
 
   const validateForm = () => {
@@ -108,21 +106,14 @@ function EmployeeForm({ employee, onClose }) {
       return;
     }
 
-    try {
-      if (isEditMode) {
-        await dispatch(
-          editEmployee({
-            id: employee.id,
-            employee: formData,
-          })
-        ).unwrap();
-      } else {
-        await dispatch(addEmployee(formData)).unwrap();
-      }
+    setSubmitError("");
 
-      onClose();
+    try {
+      await onSubmit(formData);
     } catch (error) {
-      console.error("Failed to save employee:", error);
+      setSubmitError(
+        error || "Failed to save employee. Please try again."
+      );
     }
   };
 
@@ -141,7 +132,13 @@ function EmployeeForm({ employee, onClose }) {
           </button>
         </div>
 
-       <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate>
+          {submitError && (
+            <div className="error-message" role="alert">
+              {submitError}
+            </div>
+          )}
+
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="name">Name</label>
@@ -210,14 +207,14 @@ function EmployeeForm({ employee, onClose }) {
                 >
                   <option value="">Select country</option>
 
-                 {countries.map((country) => (
-  <option
-    key={country.id}
-    value={country.country}
-  >
-    {country.country}
-  </option>
-))}
+                  {countries.map((country) => (
+                    <option
+                      key={country.id}
+                      value={country.country}
+                    >
+                      {country.country}
+                    </option>
+                  ))}
                 </select>
               )}
 

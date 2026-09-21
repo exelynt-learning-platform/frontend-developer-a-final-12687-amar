@@ -5,24 +5,47 @@ import EmployeeTable from "../components/EmployeeTable";
 import EmployeeForm from "../components/EmployeeForm";
 import Loading from "../components/Loading";
 import SearchEmployee from "../components/SearchEmployee";
+import ConfirmModal from "../components/ConfirmModal";
 
 import {
+  addEmployee,
+  editEmployee,
   fetchEmployees,
   removeEmployee,
 } from "../store/employeeSlice";
 
+import { fetchCountries } from "../store/countrySlice";
+
 function EmployeePage() {
   const dispatch = useDispatch();
 
- const { employees, loading } = useSelector(
-  (state) => state.employees
-);
+  const {
+    employees,
+    loading: employeeLoading,
+    error: employeeError,
+  } = useSelector((state) => state.employees);
+
+  const {
+    countries,
+    loading: countryLoading,
+    error: countryError,
+  } = useSelector((state) => state.countries);
+
   const [showForm, setShowForm] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  const [deleteEmployeeId, setDeleteEmployeeId] = useState(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     dispatch(fetchEmployees());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (countries.length === 0) {
+      dispatch(fetchCountries());
+    }
+  }, [dispatch, countries.length]);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -39,22 +62,39 @@ function EmployeePage() {
     setSelectedEmployee(null);
   };
 
-const handleDelete = async (id) => {
-  const confirmDelete = window.confirm(
-    "Are you sure you want to delete this employee?"
-  );
+  const handleSaveEmployee = async (formData) => {
+    if (selectedEmployee) {
+      await dispatch(
+        editEmployee({
+          id: selectedEmployee.id,
+          employee: formData,
+        })
+      ).unwrap();
+    } else {
+      await dispatch(addEmployee(formData)).unwrap();
+    }
 
-  if (!confirmDelete) {
-    return;
-  }
+    handleCloseForm();
+  };
 
-  try {
-    await dispatch(removeEmployee(id)).unwrap();
-    alert("Employee deleted successfully");
-  } catch (error) {
-    alert(error || "Failed to delete employee");
-  }
-};
+  const handleDelete = (id) => {
+    setDeleteEmployeeId(id);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await dispatch(
+        removeEmployee(deleteEmployeeId)
+      ).unwrap();
+
+      setMessage("Employee deleted successfully");
+      setDeleteEmployeeId(null);
+    } catch (error) {
+      setMessage(error || "Failed to delete employee");
+      setDeleteEmployeeId(null);
+    }
+  };
+
   return (
     <div className="employee-page">
       <div className="page-header">
@@ -74,23 +114,46 @@ const handleDelete = async (id) => {
 
       <SearchEmployee />
 
-      {loading && <Loading />}
+      {message && (
+        <div className="success-message" role="alert">
+          {message}
+        </div>
+      )}
 
-      
-      
+      {employeeLoading && <Loading />}
 
-     {!loading && (
-  <EmployeeTable
-    employees={employees}
-    onEdit={handleEdit}
-    onDelete={handleDelete}
-  />
-)}
+      {employeeError && (
+        <div className="error-message" role="alert">
+          {employeeError}
+        </div>
+      )}
+
+      {!employeeLoading && (
+        <EmployeeTable
+          employees={employees}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
 
       {showForm && (
         <EmployeeForm
           employee={selectedEmployee}
+          countries={countries}
+          countryLoading={countryLoading}
+          countryError={countryError}
+          employeeLoading={employeeLoading}
+          onSubmit={handleSaveEmployee}
           onClose={handleCloseForm}
+        />
+      )}
+
+      {deleteEmployeeId && (
+        <ConfirmModal
+          title="Delete Employee"
+          message="Are you sure you want to delete this employee?"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteEmployeeId(null)}
         />
       )}
     </div>

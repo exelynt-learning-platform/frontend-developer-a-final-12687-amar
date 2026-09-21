@@ -145,13 +145,13 @@ const employeeSlice = createSlice({
       .addCase(editEmployee.fulfilled, (state, action) => {
         state.loading = false;
 
-        const index = state.employees.findIndex(
-          (employee) => employee.id === action.payload.id
-        );
+       const index = state.employees.findIndex(
+  (employee) => String(employee.id) === String(action.payload.id)
+);
 
-        if (index !== -1) {
-          state.employees[index] = action.payload;
-        }
+if (index !== -1) {
+  state.employees[index] = action.payload;
+}
       })
       .addCase(editEmployee.rejected, (state, action) => {
         state.loading = false;
@@ -166,9 +166,9 @@ const employeeSlice = createSlice({
       .addCase(removeEmployee.fulfilled, (state, action) => {
         state.loading = false;
 
-        state.employees = state.employees.filter(
-          (employee) => employee.id !== action.payload
-        );
+       state.employees = state.employees.filter(
+  (employee) => String(employee.id) !== String(action.payload)
+);
       })
       .addCase(removeEmployee.rejected, (state, action) => {
         state.loading = false;

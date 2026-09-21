@@ -1,47 +1,30 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Provider } from "react-redux";
-import { configureStore } from "@reduxjs/toolkit";
 import { describe, expect, it, vi } from "vitest";
 
 import EmployeeForm from "../components/EmployeeForm";
-import employeeReducer from "../store/employeeSlice";
-import countryReducer from "../store/countrySlice";
 
-const createTestStore = () => {
-  return configureStore({
-    reducer: {
-      employees: employeeReducer,
-      countries: countryReducer,
+const defaultProps = {
+  employee: null,
+  countries: [
+    {
+      id: "1",
+      country: "India",
     },
-    preloadedState: {
-      employees: {
-        employees: [],
-        selectedEmployee: null,
-        loading: false,
-        error: null,
-      },
-      countries: {
-        countries: [
-          {
-            id: "1",
-            country: "India",
-          },
-        ],
-        loading: false,
-        error: null,
-      },
-    },
-  });
+  ],
+  countryLoading: false,
+  countryError: null,
+  employeeLoading: false,
+  onSubmit: vi.fn(),
+  onClose: vi.fn(),
 };
 
-const renderForm = () => {
-  const store = createTestStore();
-
+const renderForm = (props = {}) => {
   return render(
-    <Provider store={store}>
-      <EmployeeForm onClose={vi.fn()} />
-    </Provider>
+    <EmployeeForm
+      {...defaultProps}
+      {...props}
+    />
   );
 };
 
@@ -51,13 +34,15 @@ describe("EmployeeForm", () => {
 
     renderForm();
 
-    const addButton = screen.getByRole("button", {
-      name: "Add Employee",
-    });
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
+    );
 
-    await user.click(addButton);
-
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(
+      screen.getByText("Name is required")
+    ).toBeInTheDocument();
   });
 
   it("shows validation error for invalid email", async () => {
@@ -65,15 +50,16 @@ describe("EmployeeForm", () => {
 
     renderForm();
 
-    const emailInput = screen.getByLabelText("Email");
+    await user.type(
+      screen.getByLabelText("Email"),
+      "invalid-email"
+    );
 
-    await user.type(emailInput, "invalid-email");
-
-    const addButton = screen.getByRole("button", {
-      name: "Add Employee",
-    });
-
-    await user.click(addButton);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
+    );
 
     expect(
       screen.getByText("Enter a valid email address")
@@ -85,18 +71,21 @@ describe("EmployeeForm", () => {
 
     renderForm();
 
-    const mobileInput = screen.getByLabelText("Mobile");
+    await user.type(
+      screen.getByLabelText("Mobile"),
+      "12345"
+    );
 
-    await user.type(mobileInput, "12345");
-
-    const addButton = screen.getByRole("button", {
-      name: "Add Employee",
-    });
-
-    await user.click(addButton);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
+    );
 
     expect(
-      screen.getByText("Mobile number must contain 10 digits")
+      screen.getByText(
+        "Mobile number must contain 10 digits"
+      )
     ).toBeInTheDocument();
   });
 
@@ -105,24 +94,99 @@ describe("EmployeeForm", () => {
 
     renderForm();
 
-    const nameInput = screen.getByLabelText("Name");
-    const emailInput = screen.getByLabelText("Email");
-    const mobileInput = screen.getByLabelText("Mobile");
-    const stateInput = screen.getByLabelText("State");
-    const districtInput = screen.getByLabelText("District");
+    await user.type(
+      screen.getByLabelText("Name"),
+      "Amar Bhise"
+    );
 
-    await user.type(nameInput, "Amar Bhise");
-    await user.type(emailInput, "amar@gmail.com");
-    await user.type(mobileInput, "9730695484");
-    await user.type(stateInput, "Maharashtra");
-    await user.type(districtInput, "Latur");
+    await user.type(
+      screen.getByLabelText("Email"),
+      "amar@gmail.com"
+    );
 
-    const addButton = screen.getByRole("button", {
-      name: "Add Employee",
-    });
+    await user.type(
+      screen.getByLabelText("Mobile"),
+      "9730695484"
+    );
 
-    await user.click(addButton);
+    await user.type(
+      screen.getByLabelText("State"),
+      "Maharashtra"
+    );
 
-    expect(screen.getByText("Country is required")).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("District"),
+      "Latur"
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
+    );
+
+    expect(
+      screen.getByText("Country is required")
+    ).toBeInTheDocument();
+  });
+
+  it("renders country options from props", () => {
+    renderForm();
+
+    expect(
+      screen.getByRole("option", {
+        name: "India",
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("shows API error when submit fails", async () => {
+    const user = userEvent.setup();
+
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValue("Failed to save employee");
+
+    renderForm({ onSubmit });
+
+    await user.type(
+      screen.getByLabelText("Name"),
+      "Amar Bhise"
+    );
+
+    await user.type(
+      screen.getByLabelText("Email"),
+      "amar@gmail.com"
+    );
+
+    await user.type(
+      screen.getByLabelText("Mobile"),
+      "9730695484"
+    );
+
+    await user.selectOptions(
+      screen.getByLabelText("Country"),
+      "India"
+    );
+
+    await user.type(
+      screen.getByLabelText("State"),
+      "Maharashtra"
+    );
+
+    await user.type(
+      screen.getByLabelText("District"),
+      "Latur"
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
+    );
+
+    expect(
+      await screen.findByText("Failed to save employee")
+    ).toBeInTheDocument();
   });
 });

@@ -4,11 +4,20 @@ import { configureStore } from "@reduxjs/toolkit";
 import { describe, expect, it, vi } from "vitest";
 
 import EmployeePage from "../pages/EmployeePage";
-import employeeReducer, {
-  removeEmployee,
-} from "../store/employeeSlice";
+import employeeReducer from "../store/employeeSlice";
 
-vi.mock("../store/employeeSlice", async () => {
+vi.mock("../services/employeeService", async () => {
+  const actual = await vi.importActual("../services/employeeService");
+
+  return {
+    ...actual,
+    deleteEmployee: vi.fn().mockResolvedValue({}),
+  };
+});
+import countryReducer from "../store/countrySlice";
+
+
+ vi.mock("../store/employeeSlice", async () => {
   const actual = await vi.importActual("../store/employeeSlice");
 
   return {
@@ -16,12 +25,17 @@ vi.mock("../store/employeeSlice", async () => {
     fetchEmployees: vi.fn(() => ({
       type: "employees/fetchEmployees",
     })),
+  };
+});
 
+vi.mock("../store/countrySlice", async () => {
+  const actual = await vi.importActual("../store/countrySlice");
 
-    removeEmployee: vi.fn((id) => ({
-  type: "employees/removeEmployee",
-  payload: id,
-})),
+  return {
+    ...actual,
+    fetchCountries: vi.fn(() => ({
+      type: "countries/fetchCountries",
+    })),
   };
 });
 
@@ -32,7 +46,14 @@ vi.mock("../components/SearchEmployee", () => ({
 vi.mock("../components/EmployeeTable", () => ({
   default: ({ onEdit, onDelete }) => (
     <div>
-      <button onClick={() => onEdit({ id: "1", name: "Amar Bhise" })}>
+      <button
+        onClick={() =>
+          onEdit({
+            id: "1",
+            name: "Amar Bhise",
+          })
+        }
+      >
         Edit
       </button>
 
@@ -48,7 +69,9 @@ vi.mock("../components/EmployeeForm", () => ({
     <div>
       <p>{employee ? "Edit Employee" : "Add Employee"}</p>
 
-      <button onClick={onClose}>Close Form</button>
+      <button onClick={onClose}>
+        Close Form
+      </button>
     </div>
   ),
 }));
@@ -57,6 +80,7 @@ const createTestStore = () => {
   return configureStore({
     reducer: {
       employees: employeeReducer,
+      countries: countryReducer,
     },
     preloadedState: {
       employees: {
@@ -70,6 +94,16 @@ const createTestStore = () => {
           },
         ],
         selectedEmployee: null,
+        loading: false,
+        error: null,
+      },
+      countries: {
+        countries: [
+          {
+            id: "1",
+            country: "India",
+          },
+        ],
         loading: false,
         error: null,
       },
@@ -96,7 +130,9 @@ describe("EmployeePage", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "Add Employee" })
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
     ).toBeInTheDocument();
   });
 
@@ -110,11 +146,15 @@ describe("EmployeePage", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Add Employee" })
+      screen.getByRole("button", {
+        name: "Add Employee",
+      })
     );
 
     expect(
-      screen.getByText("Add Employee", { selector: "p" })
+      screen.getByText("Add Employee", {
+        selector: "p",
+      })
     ).toBeInTheDocument();
   });
 
@@ -128,18 +168,50 @@ describe("EmployeePage", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Edit" })
+      screen.getByRole("button", {
+        name: "Edit",
+      })
     );
 
     expect(
-      screen.getByText("Edit Employee", { selector: "p" })
+      screen.getByText("Edit Employee", {
+        selector: "p",
+      })
     ).toBeInTheDocument();
   });
 
-  it("deletes employee after confirmation", () => {
-  const store = createTestStore();
+  it("opens delete confirmation modal", () => {
+    const store = createTestStore();
 
-  vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <Provider store={store}>
+        <EmployeePage />
+      </Provider>
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete",
+      })
+    );
+
+    expect(
+      screen.getByRole("dialog")
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText("Delete Employee")
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        "Are you sure you want to delete this employee?"
+      )
+    ).toBeInTheDocument();
+  });
+
+ it("deletes employee after confirmation", async () => {
+  const store = createTestStore();
 
   render(
     <Provider store={store}>
@@ -148,15 +220,51 @@ describe("EmployeePage", () => {
   );
 
   fireEvent.click(
-    screen.getByRole("button", { name: "Delete" })
+    screen.getByRole("button", {
+      name: "Delete",
+    })
   );
 
-  expect(window.confirm).toHaveBeenCalledWith(
-    "Are you sure you want to delete this employee?"
+  const dialog = screen.getByRole("dialog");
+
+  fireEvent.click(
+    dialog.querySelector(".delete-button")
   );
 
-  expect(removeEmployee).toHaveBeenCalledWith("1");
+  await screen.findByText("Employee deleted successfully");
 
-  window.confirm.mockRestore();
+  expect(
+    store.getState().employees.employees
+  ).toHaveLength(0);
 });
+
+  it("closes delete confirmation modal when cancelled", () => {
+    const store = createTestStore();
+
+    render(
+      <Provider store={store}>
+        <EmployeePage />
+      </Provider>
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete",
+      })
+    );
+
+    expect(
+      screen.getByRole("dialog")
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Cancel",
+      })
+    );
+
+    expect(
+      screen.queryByRole("dialog")
+    ).not.toBeInTheDocument();
+  });
 });
